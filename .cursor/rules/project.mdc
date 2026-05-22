@@ -1,0 +1,40 @@
+---
+description: LeafyMind project-wide conventions and architecture boundaries
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# LeafyMind project rules
+
+## Identity
+
+AI concierge for Leafy Cave (Wellawaya, Sri Lanka). Guests plan via Agent Hub (`/hub`) or classic chat (`/chat`). Owners use `/owner`.
+
+## Layer boundaries
+
+| Layer | Path | Must not |
+|-------|------|----------|
+| Frontend | `frontend/src/` | Call LLM APIs; store secrets |
+| BFF | `bff/` | Contain business logic; bypass backend auth |
+| Backend | `backend/` | Expose stack traces to clients |
+| DB | `db/migrations/` | Be edited without numbered SQL file |
+
+## Documentation
+
+When adding features, update:
+
+- `README.md` (user-facing summary)
+- `docs/API_REFERENCE.md` (new endpoints)
+- `.env.example` (new env vars)
+- `backend/config.py` (settings fields)
+
+## Docker
+
+- Food images: `frontend/public/images/food` → `/app/food_images`
+- Public assets: `frontend/public` → `/app/public_assets`
+- Ports from `.env`: `FRONTEND_PORT`, `BFF_PORT`, `BACKEND_PORT`
+
+## Commits
+
+Do not commit `.env`, `node_modules`, `__pycache__`, `.cache`, or secrets.

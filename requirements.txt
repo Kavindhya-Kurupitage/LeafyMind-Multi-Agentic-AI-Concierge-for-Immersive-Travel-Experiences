@@ -1,0 +1,11 @@
+# =============================================================================
+# LeafyMind — Python dependencies (backend)
+# =============================================================================
+# Install from repository root:
+#   pip install -r requirements.txt
+#
+# Docker builds use backend/requirements.txt directly (same content).
+# For development-only tools (pytest), see backend/requirements-dev.txt
+# =============================================================================
+
+-r backend/requirements.txt

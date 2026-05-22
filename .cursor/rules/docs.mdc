@@ -1,0 +1,41 @@
+---
+description: Documentation writing standards for LeafyMind
+globs:
+  - "docs/**/*.md"
+  - "README.md"
+  - "SECURITY.md"
+  - ".env.example"
+alwaysApply: false
+---
+
+# Documentation rules
+
+## Style
+
+- Complete sentences; clear headings; tables for reference data
+- Link between docs with relative paths (`[Guide](ARCHITECTURE.md)`)
+- Code blocks with language tags (`bash`, `powershell`, `sql`)
+- Keep port examples aligned with `.env.example` (5174, 3002, 8010)
+
+## When to update
+
+| Change | Update |
+|--------|--------|
+| New API route | `docs/API_REFERENCE.md`, `README.md` API section |
+| New env var | `.env.example`, `docs/EXTERNAL_SERVICES_SETUP.md`, `backend/config.py` |
+| Agent Hub behaviour | `docs/AGENT_HUB.md` |
+| Trip pack / PDF / email | `docs/TRIP_PACK.md` |
+| Security change | `SECURITY.md` |
+
+## Accurate product facts
+
+- LLM default: Groq (not Gemini)
+- Postgres 15 in Docker
+- Trip pack requires all three planners
+- Feedback survey email: after all three planners (separate from trip plan PDF button)
+- Package names: Love Nest Getaway, Together Time Package, custom packages when weak match
+
+## Do not
+
+- Document unimplemented features
+- Include real API keys or passwords in examples

@@ -1,0 +1,179 @@
+# LeafyMind — Local development stack (Docker Compose only)
+# Optional pgAdmin (dev DB UI): docker compose --profile dev-tools up --build
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: leafymind-postgres
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-leafymind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-leafymind_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-leafymind}
+    ports:
+      # Host 5433 avoids conflict with local PostgreSQL on 5432 (containers still use postgres:5432)
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-leafymind} -d ${POSTGRES_DB:-leafymind}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: leafymind-backend
+    restart: unless-stopped
+    # Disable --reload in Docker so login/API are not interrupted by file-watch restarts
+    command:
+      [
+        "uvicorn",
+        "main:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+      ]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          # FAISS + embeddings need headroom; 512M caused login timeouts under load
+          memory: 1024M
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leafymind}:${POSTGRES_PASSWORD:-leafymind_dev}@postgres:5432/${POSTGRES_DB:-leafymind}
+      MIGRATIONS_DIR: /app/migrations
+      LLM_PROVIDER: ${LLM_PROVIDER:-GROQ}
+      LLM_MODEL: ${LLM_MODEL:-llama-3.1-8b-instant}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      OPENTRIPMAP_API_KEY: ${OPENTRIPMAP_API_KEY:-}
+      CABANA_LAT: ${CABANA_LAT:-6.7311}
+      CABANA_LON: ${CABANA_LON:-81.1003}
+      CABANA_NAME: ${CABANA_NAME:-Leafy Cave Cabana, Wellawaya}
+      MAX_SEARCH_RADIUS_KM: ${MAX_SEARCH_RADIUS_KM:-100}
+      GMAIL_SENDER_ADDRESS: ${GMAIL_SENDER_ADDRESS:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      FEEDBACK_EMAIL_DELAY_DAYS: ${FEEDBACK_EMAIL_DELAY_DAYS:-1}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FOOD_IMAGES_DIR: ${FOOD_IMAGES_DIR:-/app/food_images}
+      FOOD_IMAGES_URL_PREFIX: ${FOOD_IMAGES_URL_PREFIX:-/images/food}
+      PUBLIC_ASSETS_DIR: ${PUBLIC_ASSETS_DIR:-/app/public_assets}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - ./db/migrations:/app/migrations:ro
+      - ./frontend/public/images/food:/app/food_images:ro
+      - ./frontend/public:/app/public_assets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  bff:
+    build:
+      context: ./bff
+      dockerfile: Dockerfile
+    container_name: leafymind-bff
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - .env
+    environment:
+      BFF_BACKEND_URL: http://backend:8000
+      # Container always listens on 3001; host port comes from BFF_PORT in .env
+      BFF_PORT: 3001
+    ports:
+      - "${BFF_PORT:-3002}:3001"
+    volumes:
+      - ./bff:/app
+      - /app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: leafymind-frontend
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    env_file:
+      - .env
+    environment:
+      # Exposed to Vite dev server for API calls from the browser
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3002/api}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      # Mount full app (not only src) so /public assets and index.html stay in sync
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - bff
+
+  pgadmin:
+    profiles:
+      - dev-tools
+    image: dpage/pgadmin4:latest
+    container_name: leafymind-pgadmin
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - .env
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@leafycave.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-change_me_pgadmin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

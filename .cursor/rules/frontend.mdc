@@ -1,0 +1,51 @@
+---
+description: React frontend conventions
+globs:
+  - "frontend/src/**/*.{jsx,js,css}"
+alwaysApply: false
+---
+
+# Frontend rules
+
+## Routes (`App.jsx`)
+
+| Path | Page |
+|------|------|
+| `/` | Landing |
+| `/hub` | Agent Hub (dashboard) |
+| `/agents/:agentId` | New agent thread |
+| `/agents/:agentId/threads/:threadId` | Workspace |
+| `/chat` | Classic concierge |
+| `/owner` | Owner dashboard |
+
+## API client
+
+- `frontend/src/utils/api.js` — Axios + SSE helpers
+- Base URL: `VITE_API_BASE_URL` (must end with `/api`)
+- Auth: `configureApiAuth()` from `authStore.jsx`
+
+## Trip pack UI
+
+- `TripPackPanel.jsx` on `AgentHubPage` — shows when `profile_complete`; buttons when `trip_pack_ready`
+- `tripPackAPI.getSummary()`, `downloadPdf()`, `sendEmail()`
+
+## Artifact components
+
+- `PackageCard.jsx`, `FoodGuideCard.jsx`, `ItineraryTimeline.jsx`
+- Normalize artifacts via `utils/agentArtifacts.js`
+
+## Styling
+
+- Tailwind; brand: `forest`, `gold`, `cream`
+- Framer Motion for hub cards; respect reduced-motion where possible
+
+## Food images
+
+- URLs like `/images/food/Hoppers.jpg` from Vite `public/`
+- `FoodGuideCard` shows photos from `dish.image.url` — not in chat markdown
+
+## Do not
+
+- Put API keys in frontend code
+- Use class components
+- Call backend directly (always via BFF in browser)

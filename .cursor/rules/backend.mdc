@@ -1,0 +1,59 @@
+---
+description: Python FastAPI backend conventions
+globs:
+  - "backend/**/*.py"
+alwaysApply: false
+---
+
+# Backend rules
+
+## Entry points
+
+- App: `backend/main.py`
+- Routers: `backend/api/*.py`
+- Settings: `backend/config.py` (Pydantic `Settings`)
+
+## Agents
+
+| ID | Module area |
+|----|-------------|
+| `profile_builder` | `agents/profile_builder.py` |
+| `package_recommender` | `agents/package_recommender.py` + `rules/business_rules.py` |
+| `food_guide` | `agents/food_guide.py` + `services/food_image_service.py` |
+| `itinerary_planner` | `agents/itinerary_planner.py` + `attraction_data_layer` |
+| `feedback_collector` | `agents/feedback_collector.py` |
+| `concierge` | `agents/orchestrator.py` |
+
+Hub runner: `services/agent_runner.py` — persists nested artifacts `{ "food": {...} }`, `{ "packages": {...} }`.
+
+## Trip pack
+
+- Aggregate: `services/trip_summary_service.py`
+- PDF: `services/trip_pdf_service.py` (fpdf2)
+- Routes: `api/trip_pack.py`
+- Email: `services/email_service.send_trip_plan_email()`
+
+## Hub completion
+
+`services/hub_feedback.maybe_complete_optional_agent()` — feedback survey email only when `trip_pack_ready`.
+
+## Dependencies
+
+- Production: `backend/requirements.txt`
+- Dev/test: `backend/requirements-dev.txt`
+- Install from root: `pip install -r requirements.txt`
+
+## Patterns
+
+```python
+# Route pattern
+@router.get("/example")
+async def example(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> ResponseModel:
+    ...
+```
+
+- Use `async`/`await` for DB and HTTP.
+- Log errors with `request_id`; return safe `HTTPException` messages.

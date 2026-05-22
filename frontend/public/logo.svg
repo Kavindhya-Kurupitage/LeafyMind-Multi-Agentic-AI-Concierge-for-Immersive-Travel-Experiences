@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Leafy Cave">
+  <defs>
+    <linearGradient id="lc-ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4b96a"/>
+      <stop offset="50%" stop-color="#c9a84c"/>
+      <stop offset="100%" stop-color="#a8873a"/>
+    </linearGradient>
+    <linearGradient id="lc-leaf" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#3d7a5c"/>
+      <stop offset="100%" stop-color="#1a4731"/>
+    </linearGradient>
+    <filter id="lc-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <circle cx="60" cy="60" r="56" fill="#0c1612" stroke="url(#lc-ring)" stroke-width="3"/>
+  <circle cx="60" cy="60" r="48" fill="#143a28" opacity="0.9"/>
+  <g filter="url(#lc-glow)">
+    <path d="M60 28 C42 48 38 72 48 88 C54 78 58 58 60 28Z" fill="url(#lc-leaf)"/>
+    <path d="M60 32 C72 50 76 70 66 84 C62 70 60 50 60 32Z" fill="url(#lc-leaf)" opacity="0.75"/>
+    <path d="M60 36 C50 52 48 68 54 80 C57 68 59 52 60 36Z" fill="#c9a84c" opacity="0.35"/>
+    <circle cx="60" cy="26" r="4" fill="#c9a84c"/>
+  </g>
+</svg>

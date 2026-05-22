@@ -1,0 +1,62 @@
+# LeafyMind — Cursor rules (root)
+
+## Project
+
+LeafyMind is the AI guest concierge for **Leafy Cave** luxury cabana, Wellawaya, Sri Lanka. Stack: React (Vite) → Express BFF → FastAPI → PostgreSQL. Default LLM: **Groq** via `backend/services/llm_provider.py`.
+
+Read `README.md` and `docs/` before large changes.
+
+## Non-negotiable architecture
+
+1. **LLM** — Only `services/llm_provider.py` calls LangChain / provider APIs.
+2. **Database** — SQLAlchemy models only; no raw SQL in business logic.
+3. **Agents** — No agent-to-agent calls; use orchestrator (`agents/orchestrator.py`) or `services/agent_runner.py`.
+4. **Attractions** — Only `services/attraction_data_layer.py` queries attraction/location data.
+5. **Packages** — Matching logic lives in `rules/business_rules.py` (Love Nest Getaway, Together Time Package, custom names).
+6. **Secrets** — `.env` / `config.py` only; never commit keys; never put API keys in frontend.
+
+## Guest experience tone
+
+Warm, welcoming, plain English for international tourists. Respect Sri Lankan cultural context. No jargon in guest-facing UI copy.
+
+## Code standards
+
+- **Python 3.11+:** PEP 8, type hints, async FastAPI routes, module docstrings.
+- **React:** Functional components + hooks only; Tailwind; no class components.
+- **Env:** `config.py` (backend), `process.env` (BFF), `import.meta.env` (frontend `VITE_*` only).
+
+## Security
+
+- JWT required on routes except `/auth/register`, `/auth/login`, `/health`.
+- bcrypt passwords; Pydantic validation; sanitise user text before LLM prompts.
+- CORS: explicit origins — no `*` in production.
+- Generic API errors; never leak stack traces.
+
+## Key features to preserve
+
+- **Agent Hub** (`/hub`): profile → 3 planners → trip pack PDF/email → feedback.
+- **Trip pack:** Unlocks when all three planners have artifacts; PDF via `trip_pdf_service`; email on-demand.
+- **Food images:** Local `frontend/public/images/food/` first, Unsplash fallback.
+- **Feedback email:** Sent after all three planners complete (not after the first).
+
+## File naming
+
+- Python: `snake_case.py`
+- React components: `PascalCase.jsx`
+- Hooks: `useCamelCase.js`
+- DB migrations: `00N_description.sql`
+
+## Testing
+
+After substantive backend changes:
+
+```bash
+docker compose up -d --build
+docker exec leafymind-backend python -m scripts.test_auth_smoke
+```
+
+See `docs/FULL_APP_TESTING_GUIDE.md`.
+
+## Detailed rules
+
+See `.cursor/rules/*.mdc` for backend, frontend, and documentation conventions.
