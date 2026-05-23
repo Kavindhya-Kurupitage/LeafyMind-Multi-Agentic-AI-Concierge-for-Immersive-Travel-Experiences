@@ -239,7 +239,21 @@ export const tripPackAPI = {
   },
 
   async downloadPdf(guestName) {
-    const response = await api.get("/trip-pack/pdf", { responseType: "blob" });
+    const response = await api.get("/trip-pack/pdf", {
+      responseType: "blob",
+      validateStatus: (status) => status < 500,
+    });
+    if (response.status !== 200) {
+      let detail = "PDF download failed";
+      try {
+        const text = await response.data.text();
+        const parsed = JSON.parse(text);
+        detail = parsed.detail || detail;
+      } catch {
+        /* keep default */
+      }
+      throw new Error(typeof detail === "string" ? detail : "PDF download failed");
+    }
     const blob = new Blob([response.data], { type: "application/pdf" });
     const slug = (guestName || "Guest").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-") || "Guest";
     const url = URL.createObjectURL(blob);

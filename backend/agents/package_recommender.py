@@ -1,12 +1,15 @@
 """Package Recommender agent — personalised stay package suggestions."""
 
-
-
+import asyncio
 import json
-
+import logging
 import re
 
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+LLM_NARRATIVE_TIMEOUT_SECONDS = 45.0
 
 
 
@@ -214,7 +217,7 @@ class PackageRecommenderAgent(BaseAgent):
 
             for pkg, score in scored
 
-            if self._rules.is_strong_match(pkg, profile, score)
+            if self._rules.is_strong_match(pkg, profile_dict, score)
 
         ][:2]
 
@@ -602,6 +605,30 @@ class PackageRecommenderAgent(BaseAgent):
 
 
 
+    def _fallback_llm_content(
+        self,
+        candidates: list[tuple[Package, float]],
+        profile: GuestProfile,
+    ) -> tuple[str, dict[str, str]]:
+        """Rule-based narrative when the LLM is slow or unavailable."""
+        why_by_name: dict[str, str] = {}
+        names: list[str] = []
+        for pkg, score in candidates:
+            canonical = self._rules.normalize_package_name(pkg.name) or pkg.name
+            names.append(canonical)
+            why_by_name[canonical] = self._fallback_why(pkg, profile, score)
+        if len(names) == 1:
+            narrative = (
+                f"For your stay, **{names[0]}** is our strongest match from Leafy Cave's "
+                "cabana packages — see the details below."
+            )
+        else:
+            joined = " and ".join(f"**{n}**" for n in names)
+            narrative = (
+                f"Here are {joined} — our best rule-matched packages for your trip profile."
+            )
+        return narrative, why_by_name
+
     def _fallback_why(self, pkg: Package, profile: GuestProfile, score: float) -> str:
 
         """Rule-based personalized blurb when LLM parsing fails."""
@@ -728,9 +755,17 @@ class PackageRecommenderAgent(BaseAgent):
 
         system = f"{PACKAGE_SYSTEM_PROMPT}\n\n{get_property_context()}"
 
-        raw = await self._llm.invoke(prompt, system)
-
-        return self._parse_llm_response(raw, exact_names)
+        try:
+            raw = await asyncio.wait_for(
+                self._llm.invoke(prompt, system),
+                timeout=LLM_NARRATIVE_TIMEOUT_SECONDS,
+            )
+            return self._parse_llm_response(raw, exact_names)
+        except Exception as exc:
+            logger.warning(
+                "Package LLM narrative failed (%s); using rule-based copy", exc
+            )
+            return self._fallback_llm_content(candidates, profile)
 
 
 
@@ -804,9 +839,24 @@ class PackageRecommenderAgent(BaseAgent):
 
         )
 
-        raw = await self._llm.invoke(prompt, system)
-
-        return self._parse_llm_response(raw, [custom_name])
+        try:
+            raw = await asyncio.wait_for(
+                self._llm.invoke(prompt, system),
+                timeout=LLM_NARRATIVE_TIMEOUT_SECONDS,
+            )
+            return self._parse_llm_response(raw, [custom_name])
+        except Exception as exc:
+            logger.warning(
+                "Custom package LLM narrative failed (%s); using rule-based copy", exc
+            )
+            why = self._fallback_custom_why(
+                custom_name, profile, int(profile.duration_nights or 2)
+            )
+            narrative = (
+                f"Based on your profile, we prepared **{custom_name}** — "
+                "a tailored Leafy Cave stay when no standard package is a perfect match."
+            )
+            return narrative, {custom_name: why}
 
 
 

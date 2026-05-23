@@ -646,8 +646,6 @@ class AgentRunner:
 
         tool_events.append({"tool": tool_key, "status": "started"})
 
-
-
         payload = {
 
             "guest_profile": profile_dump,
@@ -656,77 +654,149 @@ class AgentRunner:
 
         }
 
-        if agent_id == "package_recommender":
+        artifact_payload: dict[str, Any] = {}
 
-            result = await self._package_agent.process(payload, session_context)
+        artifact_kind = "packages"
 
-            artifact_payload = {
+        artifacts: dict[str, Any] = {}
 
-                "recommendations": result.get("recommendations", []),
+        full_response = ""
 
-                "narrative": result.get("narrative", ""),
+        try:
 
-            }
+            if agent_id == "package_recommender":
 
-            full_response = artifact_payload["narrative"] or "Here are packages matched to your trip."
+                result = await self._package_agent.process(payload, session_context)
 
-            artifact_kind = "packages"
+                artifact_payload = {
 
-            artifacts = {"packages": artifact_payload}
+                    "recommendations": result.get("recommendations", []),
 
-        elif agent_id == "food_guide":
+                    "narrative": result.get("narrative", ""),
 
-            result = await self._food_agent.process(payload, session_context)
+                }
 
-            full_response = result.get("narrative") or "Here is your personalised food guide."
+                full_response = (
 
-            artifact_payload = {
+                    artifact_payload["narrative"]
 
-                "must_try": result.get("must_try", []),
+                    or "Here are packages matched to your trip."
 
-                "safe_starter": result.get("safe_starter"),
+                )
 
-                "dishes_to_avoid": result.get("dishes_to_avoid", []),
+                artifact_kind = "packages"
 
-                "narrative": full_response,
+                artifacts = {"packages": artifact_payload}
 
-            }
+            elif agent_id == "food_guide":
 
-            artifact_kind = "food"
+                result = await self._food_agent.process(payload, session_context)
 
-            artifacts = {"food": artifact_payload}
+                full_response = result.get("narrative") or "Here is your personalised food guide."
 
-        else:
+                artifact_payload = {
 
-            result = await self._itinerary_agent.process(payload, session_context)
+                    "must_try": result.get("must_try", []),
 
-            full_response = result.get("narrative") or "Here is your day-by-day adventure plan."
+                    "safe_starter": result.get("safe_starter"),
 
-            artifact_payload = {
+                    "dishes_to_avoid": result.get("dishes_to_avoid", []),
 
-                "itinerary": result.get("itinerary", []),
+                    "narrative": full_response,
 
-                "total_estimated_cost_usd": result.get("total_estimated_cost_usd", 0),
+                }
 
-                "narrative": full_response,
+                artifact_kind = "food"
 
-                "curated_count": result.get("curated_count", 0),
+                artifacts = {"food": artifact_payload}
 
-                "discovered_count": result.get("discovered_count", 0),
+            else:
 
-            }
+                result = await self._itinerary_agent.process(payload, session_context)
 
-            artifact_kind = "itinerary"
+                full_response = result.get("narrative") or "Here is your day-by-day adventure plan."
 
-            artifacts = {"itinerary": artifact_payload}
+                artifact_payload = {
+
+                    "itinerary": result.get("itinerary", []),
+
+                    "total_estimated_cost_usd": result.get("total_estimated_cost_usd", 0),
+
+                    "narrative": full_response,
+
+                    "curated_count": result.get("curated_count", 0),
+
+                    "discovered_count": result.get("discovered_count", 0),
+
+                }
+
+                artifact_kind = "itinerary"
+
+                artifacts = {"itinerary": artifact_payload}
+
+        except Exception as exc:
+
+            logger.exception(
+
+                "Planning generation failed thread=%s agent=%s",
+
+                thread.id,
+
+                agent_id,
+
+            )
+
+            if agent_id == "package_recommender":
+
+                artifact_payload = {
+
+                    "recommendations": [],
+
+                    "narrative": (
+
+                        "We could not finish package matching right now. "
+
+                        "Please try again in a moment."
+
+                    ),
+
+                }
+
+                full_response = artifact_payload["narrative"]
+
+                artifact_kind = "packages"
+
+                artifacts = {"packages": artifact_payload}
+
+            elif agent_id == "food_guide":
+
+                full_response = "We could not finish your food guide. Please try again."
+
+                artifact_payload = {"must_try": [], "narrative": full_response}
+
+                artifact_kind = "food"
+
+                artifacts = {"food": artifact_payload}
+
+            else:
+
+                full_response = "We could not finish your itinerary. Please try again."
+
+                artifact_payload = {"itinerary": [], "narrative": full_response}
+
+                artifact_kind = "itinerary"
+
+                artifacts = {"itinerary": artifact_payload}
+
+        finally:
+
+            tool_events.append({"tool": tool_key, "status": "completed"})
+
+            yield {"type": "tool_end", "tool": tool_key, "label": tool_end_label}
 
 
 
         thread.set_artifacts(artifacts)
-
-        tool_events.append({"tool": tool_key, "status": "completed"})
-
-        yield {"type": "tool_end", "tool": tool_key, "label": tool_end_label}
 
         yield {
             "type": "artifact",

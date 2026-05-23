@@ -28,6 +28,9 @@ export default function useGuidedAgent(initialTurn = null) {
 
   const applyTurn = useCallback((turn) => {
     resetForTurn(turn);
+    if (turn?.is_confirm && turn.options?.length === 1) {
+      setSelection([turn.options[0].id]);
+    }
   }, [resetForTurn]);
 
   const buildPayload = useCallback(() => {

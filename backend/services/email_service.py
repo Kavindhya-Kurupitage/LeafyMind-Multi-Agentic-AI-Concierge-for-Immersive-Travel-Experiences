@@ -67,7 +67,9 @@ class EmailService:
             )
 
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"How was your Leafy Cave experience, {guest_name}? 🌿"
+            msg["Subject"] = (
+                f"Quick planning survey (trip PDF is separate), {guest_name}"
+            )
             msg["From"] = f"Leafy Cave Concierge <{self.sender}>"
             msg["To"] = guest_email
 

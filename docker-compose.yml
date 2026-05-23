@@ -37,6 +37,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: leafymind-backend
+    init: true
     restart: unless-stopped
     # Disable --reload in Docker so login/API are not interrupted by file-watch restarts
     command:
@@ -92,10 +93,11 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 8
+      # First boot can take 90s+ (SQL migrations + sentence-transformers on slow hosts)
+      start_period: 120s
 
   bff:
     build:

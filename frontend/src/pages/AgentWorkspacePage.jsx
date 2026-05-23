@@ -7,7 +7,11 @@ import { agentsAPI } from "../utils/api.js";
 
 import AgentArtifactPanel from "../components/agents/AgentArtifactPanel.jsx";
 import FoodGuideCard from "../components/recommendations/FoodGuideCard.jsx";
-import { resolveFoodArtifacts } from "../utils/agentArtifacts.js";
+import PackageCard from "../components/recommendations/PackageCard.jsx";
+import {
+  resolveFoodArtifacts,
+  resolvePackageList,
+} from "../utils/agentArtifacts.js";
 
 import AgentSidebar from "../components/agents/AgentSidebar.jsx";
 
@@ -250,8 +254,12 @@ function AgentWorkspacePage() {
   if (artifacts.profile) mergedArtifacts.profile = artifacts.profile;
 
   const foodResults = agentId === "food_guide" ? resolveFoodArtifacts(mergedArtifacts) : null;
+  const packageResults =
+    agentId === "package_recommender" ? resolvePackageList(mergedArtifacts) : [];
+  const showPlanningResults = packageResults.length > 0 || Boolean(foodResults);
 
   const showGuided = guidedMode && activeTurn && !profileGate;
+  const hideOptionChips = activeTurn?.input_type === "confirm";
 
   const progress = activeTurn?.progress || { current: 1, total: 1 };
 
@@ -496,7 +504,7 @@ function AgentWorkspacePage() {
 
                   />
 
-                  {hasOptions && (
+                  {hasOptions && !hideOptionChips && (
 
                     <div className="mx-auto max-w-2xl">
 
@@ -539,6 +547,22 @@ function AgentWorkspacePage() {
                   {streamingMessage?.content && (
                     <div className="mx-auto max-w-2xl">
                       <StreamingMessage message={streamingMessage} />
+                    </div>
+                  )}
+                  {packageResults.length > 0 && (
+                    <div className="mx-auto max-w-2xl space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gold-dark">
+                        Your matched cabana packages
+                      </p>
+                      {packageResults.map((pkg) => (
+                        <PackageCard
+                          key={pkg.package_name || pkg.name}
+                          pkg={pkg}
+                        />
+                      ))}
+                      <p className="text-xs text-forest/50">
+                        Full details also appear in Agent outputs on the right.
+                      </p>
                     </div>
                   )}
                   {foodResults && (
@@ -638,6 +662,24 @@ function AgentWorkspacePage() {
                     ))}
 
                     {streamingMessage && <StreamingMessage message={streamingMessage} />}
+
+                    {showPlanningResults && agentId === "package_recommender" && (
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gold-dark">
+                          Your matched cabana packages
+                        </p>
+                        {packageResults.map((pkg) => (
+                          <PackageCard
+                            key={pkg.package_name || pkg.name}
+                            pkg={pkg}
+                          />
+                        ))}
+                      </div>
+                    )}
+
+                    {showPlanningResults && foodResults && (
+                      <FoodGuideCard food={foodResults} />
+                    )}
 
                     {isStreaming && !streamingMessage?.content && <TypingIndicator />}
 

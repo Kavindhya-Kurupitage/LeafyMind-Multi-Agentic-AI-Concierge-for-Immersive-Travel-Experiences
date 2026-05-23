@@ -16,3 +16,7 @@ htmlcov
 *.md
 tests
 data/faiss
+# HuggingFace / sentence-transformers cache (symlinks break Docker on Windows)
+.cache
+**/.cache
+.cache/**
