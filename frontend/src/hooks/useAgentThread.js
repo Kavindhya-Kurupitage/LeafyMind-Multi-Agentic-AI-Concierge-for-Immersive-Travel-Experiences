@@ -3,11 +3,14 @@ import { agentsAPI, streamAgentMessageEvents } from "../utils/api.js";
 import {
   extractArtifactsFromMessages,
   normalizeThreadArtifacts,
+  resolvePackageList,
 } from "../utils/agentArtifacts.js";
 import useGuidedAgent, { isGuidedAgent } from "./useGuidedAgent.js";
 
 let messageId = 0;
 const nextId = () => ++messageId;
+
+const PLANNING_TOOLS = new Set(["search_packages", "search_food", "plan_itinerary"]);
 
 function historyToMessages(items) {
   return (items || []).map((turn) => ({
@@ -91,12 +94,17 @@ export default function useAgentThread(agentId, threadIdProp, options = {}) {
       setMessages(historyToMessages(detail.messages));
       const fromThread = normalizeThreadArtifacts(detail.artifacts || {});
       const fromMessages = extractArtifactsFromMessages(detail.messages, agentId);
-      setArtifacts(normalizeThreadArtifacts({ ...fromThread, ...fromMessages }));
+      const merged = normalizeThreadArtifacts({ ...fromThread, ...fromMessages });
+      setArtifacts(merged);
       setGuestProfile(detail.guest_profile || {});
       setThreadId(id);
       if (guidedMode) {
         const turn = extractGuidedTurn(detail);
-        if (turn && detail.status === "active") {
+        const hasPlanningOutput =
+          resolvePackageList(merged).length > 0 ||
+          Boolean(merged.food?.must_try?.length) ||
+          Boolean(merged.itinerary?.itinerary?.length);
+        if (turn && detail.status === "active" && !hasPlanningOutput) {
           applyTurn(turn);
         } else {
           resetForTurn(null);
@@ -180,6 +188,9 @@ export default function useAgentThread(agentId, threadIdProp, options = {}) {
       if (event.type === "guided_turn" && event.data) {
         applyTurn(event.data);
       }
+      if (event.type === "tool_start" && PLANNING_TOOLS.has(event.tool)) {
+        resetForTurn(null);
+      }
       if (event.type === "token" || event.token) {
         setStreamingMessage((prev) => {
           if (!prev) {
@@ -225,6 +236,9 @@ export default function useAgentThread(agentId, threadIdProp, options = {}) {
             })
           );
         }
+        if (event.kind === "packages" || event.kind === "food" || event.kind === "itinerary") {
+          resetForTurn(null);
+        }
       } else if (event.type === "journey" && event.data?.planning_complete) {
         setJourneyHint({
           type: event.data.trip_pack_ready ? "trip_pack_ready" : "planning_progress",
@@ -241,9 +255,15 @@ export default function useAgentThread(agentId, threadIdProp, options = {}) {
             normalizeThreadArtifacts({ ...prev, ...event.thread.artifacts })
           );
         }
-        if (event.thread.guided_turn) {
+        const threadArtifacts = normalizeThreadArtifacts(event.thread.artifacts || {});
+        const hasPlanningOutput =
+          resolvePackageList(threadArtifacts).length > 0 ||
+          Boolean(threadArtifacts.food?.must_try?.length) ||
+          Boolean(threadArtifacts.itinerary?.itinerary?.length);
+
+        if (event.thread.guided_turn && event.thread.status === "active") {
           applyTurn(event.thread.guided_turn);
-        } else if (event.thread.status !== "active") {
+        } else if (event.thread.status !== "active" || hasPlanningOutput) {
           resetForTurn(null);
         }
         if (event.journey?.profile_complete && agentId === "profile_builder") {
@@ -318,6 +338,13 @@ export default function useAgentThread(agentId, threadIdProp, options = {}) {
         setStreamingMessage(null);
       } finally {
         setIsStreaming(false);
+        setToolActivity((prev) =>
+          prev.map((item) =>
+            item.status === "running"
+              ? { ...item, status: "done", label: item.label?.replace(/…$/, "") || item.label }
+              : item
+          )
+        );
       }
     },
     [agentMeta, agentId, isStreaming, loadThreads, handleStreamEvent]

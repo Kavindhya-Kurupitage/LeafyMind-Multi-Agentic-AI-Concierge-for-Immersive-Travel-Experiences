@@ -66,10 +66,16 @@ async def download_trip_pack_pdf(
     try:
         pdf_bytes = trip_pdf_service.generate_pdf(summary)
     except RuntimeError as exc:
-        logger.exception("PDF generation failed for user %s", user.id)
+        logger.warning("PDF generation failed for user %s: %s", user.id, exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("PDF generation failed for user %s", user.id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not generate your trip plan PDF. Please try again.",
         ) from exc
 
     filename = _safe_pdf_filename(summary.get("guest_name") or "Guest")
@@ -115,6 +121,12 @@ async def email_trip_pack(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.exception("PDF generation for email failed user=%s", user.id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not generate your trip plan PDF. Please try again.",
         ) from exc
 
     guest_name = summary.get("guest_name") or "Guest"

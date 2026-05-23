@@ -19,6 +19,26 @@ CREAM = (245, 240, 232)
 MUTED = (90, 107, 95)
 
 
+def _pdf_safe_text(value: Any) -> str:
+    """Helvetica in fpdf2 is Latin-1 only; normalize Unicode from LLM/DB copy."""
+    if value is None:
+        return ""
+    text = str(value)
+    for old, new in (
+        ("\u2014", "-"),
+        ("\u2013", "-"),
+        ("\u2018", "'"),
+        ("\u2019", "'"),
+        ("\u201c", '"'),
+        ("\u201d", '"'),
+        ("\u2026", "..."),
+        ("\u2192", "->"),
+        ("\u00a0", " "),
+    ):
+        text = text.replace(old, new)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
 class TripPdfService:
     """Build a styled PDF with profile, packages, food photos, and itinerary."""
 
@@ -61,10 +81,10 @@ class TripPdfService:
             if not isinstance(pkg, dict):
                 continue
             why = pkg.get("why_this_fits") or pkg.get("fit_reason") or ""
-            why = re.sub(r"\*+", "", why)[:400]
+            why = _pdf_safe_text(re.sub(r"\*+", "", why)[:400])
             packages.append(
                 {
-                    "name": pkg.get("package_name") or pkg.get("name") or "Package",
+                    "name": _pdf_safe_text(pkg.get("package_name") or pkg.get("name") or "Package"),
                     "price": pkg.get("price_per_night_usd") or pkg.get("price"),
                     "min_nights": pkg.get("min_nights"),
                     "why": why,
@@ -83,9 +103,9 @@ class TripPdfService:
             desc = dish.get("description_plain_english") or dish.get("description") or ""
             dishes.append(
                 {
-                    "name": name,
-                    "spice": dish.get("spice_level") or dish.get("spice"),
-                    "description": desc[:260],
+                    "name": _pdf_safe_text(name),
+                    "spice": _pdf_safe_text(dish.get("spice_level") or dish.get("spice")),
+                    "description": _pdf_safe_text(desc[:260]),
                     "image_path": self._dish_image_path(dish),
                 }
             )
@@ -105,40 +125,57 @@ class TripPdfService:
                 if isinstance(act, dict):
                     activities.append(
                         {
-                            "slot": act.get("time_slot") or act.get("period") or "Activity",
-                            "name": act.get("attraction_name") or act.get("name") or "",
-                            "description": (act.get("description") or "")[:180],
+                            "slot": _pdf_safe_text(
+                                act.get("time_slot") or act.get("period") or "Activity"
+                            ),
+                            "name": _pdf_safe_text(
+                                act.get("attraction_name") or act.get("name") or ""
+                            ),
+                            "description": _pdf_safe_text((act.get("description") or "")[:180]),
                         }
                     )
             days.append(
                 {
                     "day_number": day.get("day") or day.get("day_number") or len(days) + 1,
-                    "theme": day.get("theme") or "",
+                    "theme": _pdf_safe_text(day.get("theme") or ""),
                     "activities": activities,
                 }
             )
 
         return {
-            "guest_name": summary.get("guest_name") or "Guest",
+            "guest_name": _pdf_safe_text(summary.get("guest_name") or "Guest"),
             "profile": profile,
-            "dietary": dietary_str,
+            "dietary": _pdf_safe_text(dietary_str),
             "packages": packages,
-            "packages_narrative": ((summary.get("packages") or {}).get("narrative") or "")[:500],
-            "food_narrative": (food.get("narrative") or "")[:500],
+            "packages_narrative": _pdf_safe_text(
+                ((summary.get("packages") or {}).get("narrative") or "")[:500]
+            ),
+            "food_narrative": _pdf_safe_text((food.get("narrative") or "")[:500]),
             "dishes": dishes,
-            "safe_starter": safe_name,
+            "safe_starter": _pdf_safe_text(safe_name) if safe_name else None,
             "days": days,
-            "itinerary_narrative": (itinerary.get("narrative") or "")[:500],
+            "itinerary_narrative": _pdf_safe_text((itinerary.get("narrative") or "")[:500]),
             "generated_at": datetime.now(timezone.utc).strftime("%d %B %Y"),
         }
 
     def generate_pdf(self, summary: dict[str, Any]) -> bytes:
         try:
-            from fpdf import FPDF
+            from fpdf import FPDF  # noqa: F401 — availability check
         except ImportError as exc:
             raise RuntimeError("PDF generation is not available on this server") from exc
 
         ctx = self._prepare_sections(summary)
+        try:
+            return self._render_pdf_bytes(ctx)
+        except Exception as exc:
+            logger.exception("Trip pack PDF render failed")
+            raise RuntimeError(
+                "Could not generate your trip plan PDF. Please try again."
+            ) from exc
+
+    def _render_pdf_bytes(self, ctx: dict[str, Any]) -> bytes:
+        from fpdf import FPDF
+
         pdf = FPDF(orientation="P", unit="mm", format="A4")
         pdf.set_auto_page_break(auto=True, margin=18)
         pdf.set_margins(18, 18, 18)
@@ -205,7 +242,7 @@ class TripPdfService:
         pdf.set_fill_color(*GOLD)
         pdf.set_text_color(*FOREST)
         pdf.set_font("Helvetica", "B", 13)
-        pdf.cell(0, 9, f"  {title}", fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 9, _pdf_safe_text(f"  {title}"), fill=True, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(3)
 
     @staticmethod
@@ -217,7 +254,7 @@ class TripPdfService:
             style = "I"
         pdf.set_font("Helvetica", style, 10)
         pdf.set_text_color(*MUTED)
-        pdf.multi_cell(0, 5, text)
+        pdf.multi_cell(0, 5, _pdf_safe_text(text))
         pdf.ln(2)
         pdf.set_text_color(*FOREST)
 
@@ -239,7 +276,7 @@ class TripPdfService:
             pdf.cell(0, 5, label.upper(), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 10)
             pdf.set_text_color(*FOREST)
-            pdf.multi_cell(0, 5, str(value))
+            pdf.multi_cell(0, 5, _pdf_safe_text(value))
             pdf.ln(1)
 
     @staticmethod
@@ -252,13 +289,13 @@ class TripPdfService:
         pdf.set_xy(20, y + 1)
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(*FOREST)
-        pdf.cell(0, 6, pkg["name"])
+        pdf.cell(0, 6, _pdf_safe_text(pkg["name"]))
         pdf.ln(7)
         if pkg.get("price"):
             pdf.set_font("Helvetica", "B", 10)
             pdf.set_text_color(*GOLD)
             nights = f" - min {pkg['min_nights']} nights" if pkg.get("min_nights") else ""
-            pdf.cell(0, 5, f"USD {pkg['price']} / night{nights}")
+            pdf.cell(0, 5, _pdf_safe_text(f"USD {pkg['price']} / night{nights}"))
             pdf.ln(5)
         if pkg.get("why"):
             TripPdfService._body_text(pdf, pkg["why"])
@@ -269,7 +306,7 @@ class TripPdfService:
             pdf.ln(4)
             pdf.set_font("Helvetica", "", 9)
             for item in pkg["inclusions"]:
-                pdf.cell(0, 4, f"  - {item}")
+                pdf.cell(0, 4, _pdf_safe_text(f"  - {item}"))
                 pdf.ln(4)
         pdf.ln(3)
 
@@ -289,19 +326,19 @@ class TripPdfService:
         pdf.set_xy(text_x, y)
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(*FOREST)
-        pdf.cell(0, 6, dish["name"])
+        pdf.cell(0, 6, _pdf_safe_text(dish["name"]))
         pdf.ln(5)
         if dish.get("spice"):
             pdf.set_x(text_x)
             pdf.set_font("Helvetica", "I", 9)
             pdf.set_text_color(*MUTED)
-            pdf.cell(0, 4, f"Spice: {dish['spice']}")
+            pdf.cell(0, 4, _pdf_safe_text(f"Spice: {dish['spice']}"))
             pdf.ln(4)
         if dish.get("description"):
             pdf.set_x(text_x)
             pdf.set_font("Helvetica", "", 9)
             pdf.set_text_color(*FOREST)
-            pdf.multi_cell(120 if text_x > 30 else 0, 4, dish["description"])
+            pdf.multi_cell(120 if text_x > 30 else 0, 4, _pdf_safe_text(dish["description"]))
         pdf.set_y(max(pdf.get_y(), y + 36))
         pdf.ln(4)
 
@@ -314,7 +351,7 @@ class TripPdfService:
             title += f" - {day['theme']}"
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(*FOREST)
-        pdf.cell(0, 6, title)
+        pdf.cell(0, 6, _pdf_safe_text(title))
         pdf.ln(6)
         for act in day.get("activities") or []:
             pdf.set_font("Helvetica", "B", 9)
@@ -326,7 +363,7 @@ class TripPdfService:
             line = act.get("name", "")
             if act.get("description"):
                 line += f" - {act['description']}"
-            pdf.multi_cell(0, 4, line)
+            pdf.multi_cell(0, 4, _pdf_safe_text(line))
             pdf.ln(2)
         pdf.ln(2)
 

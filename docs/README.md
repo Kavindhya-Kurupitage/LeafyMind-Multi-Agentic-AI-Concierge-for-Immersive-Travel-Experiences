@@ -4,6 +4,16 @@ Central index for technical documentation. Start with the [main README](../READM
 
 ---
 
+## Quest 2 / portfolio submission
+
+| Guide | Content |
+|-------|---------|
+| [QUEST2_SUBMISSION_CHECKLIST.md](QUEST2_SUBMISSION_CHECKLIST.md) | What to submit and what’s left to do |
+| [CASE_STUDY.md](CASE_STUDY.md) | Portfolio case study (copy to Notion) |
+| [PROBLEM_1PAGER.md](PROBLEM_1PAGER.md) | Day 1 discovery template |
+
+---
+
 ## Getting started
 
 | Guide | Audience | Content |

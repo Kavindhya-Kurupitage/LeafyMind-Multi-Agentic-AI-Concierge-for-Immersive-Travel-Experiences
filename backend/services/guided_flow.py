@@ -79,7 +79,14 @@ class GuidedFlowService:
         if not steps:
             return GuidedFlowResult(assistant_content="How can I help?")
         if index >= len(steps):
-            index = len(steps) - 1
+            return GuidedFlowResult(
+                assistant_content=(
+                    "Your specialist results are ready — review the cards in "
+                    "Agent outputs or start a new conversation."
+                ),
+                profile=profile,
+                preferences=prefs,
+            )
         step = steps[index]
         profile = thread.get_guest_profile()
         prefs = thread.get_agent_preferences()
@@ -211,7 +218,7 @@ class GuidedFlowService:
             thread.set_interview_phase("generate")
             thread.set_guest_profile(profile)
             thread.set_agent_preferences(prefs)
-            _set_step_index(ctx, index)
+            _set_step_index(ctx, len(steps))
             thread.context = ctx
             return GuidedFlowResult(
                 user_content=user_label,

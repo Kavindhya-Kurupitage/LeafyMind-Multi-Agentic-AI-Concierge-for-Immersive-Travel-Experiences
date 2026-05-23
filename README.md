@@ -3,6 +3,7 @@
 <!-- BANNER -->
 <img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=LeafyMind&fontSize=80&fontColor=fff&animation=twinkling&fontAlignY=35&desc=AI-Powered%20Guest%20Concierge%20for%20Leafy%20Cave&descAlignY=60&descSize=18" width="100%"/>
 
+<<<<<<< HEAD
 <!-- BADGES ROW 1 -->
 <p>
   <img src="https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
@@ -39,6 +40,12 @@
 [🚀 Quick Start](#-quick-start) &nbsp;·&nbsp; [🏗️ Architecture](#️-architecture) &nbsp;·&nbsp; [🤖 AI Agents](#-ai-agents) &nbsp;·&nbsp; [📖 Docs](#-documentation) &nbsp;·&nbsp; [🔒 Security](SECURITY.md)
 
 </div>
+=======
+> **Quest 2 portfolio:** [Case study](docs/CASE_STUDY.md) · [Submission checklist](docs/QUEST2_SUBMISSION_CHECKLIST.md) · _[Live demo URL]_ · _[Loom video]_
+
+
+LeafyMind helps international guests plan stays through guided AI specialists: travel profiles, rule-based cabana packages, Sri Lankan food guides with photos, curated itineraries, branded trip-plan PDFs, and post-stay feedback. Recommendations are grounded in Leafy Cave business rules, PostgreSQL data, and Sri Lankan cultural context.
+
 
 ---
 
