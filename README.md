@@ -40,11 +40,6 @@
 [🚀 Quick Start](#-quick-start) &nbsp;·&nbsp; [🏗️ Architecture](#️-architecture) &nbsp;·&nbsp; [🤖 AI Agents](#-ai-agents) &nbsp;·&nbsp; [📖 Docs](#-documentation) &nbsp;·&nbsp; [🔒 Security](SECURITY.md)
 
 </div>
-=======
-> **Quest 2 portfolio:** [Case study](docs/CASE_STUDY.md) · [Submission checklist](docs/QUEST2_SUBMISSION_CHECKLIST.md) · _[Live demo URL]_ · _[Loom video]_
-
-
-> **Quest 2 portfolio:** [Case study](docs/CASE_STUDY.md) · [Submission checklist](docs/QUEST2_SUBMISSION_CHECKLIST.md) · _[Live demo URL]_ · _[Loom video]_
 
 
 LeafyMind helps international guests plan stays through guided AI specialists: travel profiles, rule-based cabana packages, Sri Lankan food guides with photos, curated itineraries, branded trip-plan PDFs, and post-stay feedback. Recommendations are grounded in Leafy Cave business rules, PostgreSQL data, and Sri Lankan cultural context.
